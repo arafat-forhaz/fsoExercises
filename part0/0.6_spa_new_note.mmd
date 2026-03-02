@@ -1,0 +1,8 @@
+sequenceDiagram
+    participant browser
+    participant server
+
+    browser ->> server: POST https://studies.cs.helsinki.fi/exampleapp/new_note_spa
+    Note right of browser: content-type : application/json
+    server ->> browser: 201 created
+    Note right of browser: prevent new GET request to /notes <br> JS event handler : <br> -creates new note <br> - adds to the notes list <br> - re-render the notes list <br> - sends new note to server
