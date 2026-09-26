@@ -1,15 +1,37 @@
-import { useState } from 'react'
+import { useState , useEffect } from 'react'
+import axios from 'axios'
+import personService from './personService'
+
+
+
 
 const PersonForm = ( {formObj} ) => {
   const {persons, setPersons, newName, setNewName, newNum, setNewNum} = formObj
 
   const submitted = (event) => {
+    const matched = persons.find(p => p.name === newName)
     event.preventDefault()
-    if ( persons.some(p => p.name === newName) ) {
+
+    if ( matched && matched.number === newNum ) {
       alert(`${newName} is already added to phonebook`)
-    } else {
+    } 
+    else if ( matched && matched.number !== newNum ) {
+      const ask = `${newName} is already added to phonebook, replace the old number with a new one?`
+      const updatedPerson = { ...matched, number: newNum }
+      if (confirm(ask)) {
+        personService.update(matched.id, updatedPerson)
+        .then(returned => {
+          setPersons(persons.map(p => p.id !== returned.id? p : updatedPerson))
+        })
+        console.log(updatedPerson)
+      }
+    } 
+    else {
       const added = {name: newName, number: newNum}
-      setPersons(persons.concat(added))
+      personService.add(added)
+      .then(addedPerson => 
+        setPersons(persons.concat(addedPerson))
+      )
     }
     setNewName('')
     setNewNum('')
@@ -33,41 +55,80 @@ const PersonForm = ( {formObj} ) => {
   )
 }
 
-const Persons = ({list}) => {
+
+
+
+const Persons = ( {showObj} ) => {
+  const {persons, setPersons, search} = showObj
+
+  const filteredList = persons.filter(p => p.name.includes(search))
+  const list = !search? persons : filteredList
+
+  const deletion = (id) => {
+    personService.remove(id).then(removedPer => {
+      console.log(`removed ${removedPer.name}`)
+      setPersons(persons.filter(p => p.id !== removedPer.id))
+    })
+  }
+
   return (
     <div>
-      {list.map(p => <p key={p.name}> {p.name} : {p.number} </p>)}
+      {list.map(p => {
+        return (
+        <div key={p.id}>
+          <p> {p.name} : {p.number} <button onClick={() => deletion(p.id)}>Delete</button></p>
+        </div>
+        )
+      })}
     </div>
   )
 } 
 
-const Filter = () => {
+
+
+
+const Filter = ({search, setSearch}) => {
+  const handleChange = (event) => {
+    setSearch(event.target.value)
+  } 
   return (
     <div>
-      Filter shown with <input value={search} />
+      Filter shown with <input value={search} onChange={handleChange} />
     </div>
   )
 }
 
-const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ])
 
+
+
+const App = () => {
+  const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNum, setNewNum] = useState('')
+  const [search, setSearch] = useState('')
 
-  const statesObj = {persons, setPersons, newName, setNewName, newNum, setNewNum}
+  const getData = () => {
+    personService.getAll()
+    .then(initial => {
+      console.log("promise fulfilled")
+      setPersons(initial)
+    })
+  }
+
+  useEffect(getData, [])
+  console.log(`rendered ${persons.length} persons`)
+
+  const addPersons = {persons, setPersons, newName, setNewName, newNum, setNewNum}
+  const showNDelete = {persons, setPersons, search}
 
   return (
     <div>
       <h2>Phonebook</h2>
-      <PersonForm formObj={statesObj} />
-      <h2>Numbers</h2>
-      <Persons list={persons}/>
+      <Filter search={search} setSearch={setSearch} />
+      <h3>Add a new</h3>
+      <PersonForm formObj={addPersons} />
+      <h3>Numbers</h3>
+      <Persons showObj={showNDelete} />
     </div>
   )
 }
